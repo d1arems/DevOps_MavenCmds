@@ -1,0 +1,214 @@
+1. npm init 
+2. npm install express
+3a. vi/nano server.js or app.js
+3b. Create Index.html and About.hmtl
+4. run app locally
+5. dockerise application (Create Dockerfile --production), Create .dockerignore and add node_modules and .env inside
+6. build docker image
+7. push docker image to registry, Create Registry first before Push (Dockerhub, ECR, ACR, DOCR). See note for ACR below.
+8. Create kubernetes clusters (Use Terraform, or CLI or UI)
+9. use kubectl and create resources via cli or manifest files (deployments, services, ingress also?)
+10. Create a remote git repo in Github
+11. Push Code to Github (Create .gitinore file)
+
+----- FOR ACR -----
+// do az login first
+a. az group create --name karo-Group --location westeurope
+b. az acr create --resource-group karo-Group --name boboacr --sku Standard --location westeurope
+c. az acr login --name <registry-name>
+d. docker tag ooghenekaro/nodejswebapp:latest boboacr.azurecr.io/nodejswebapp:v1
+d. docker push boboacr.azurecr.io/nodejswebapp:v1
+e. az acr repository list --name boboacr --output table
+f. az acr repository show-tags --name boboacr --repository nodejswebapp --output table
+g. az group delete --name <myResourceGroup> - only delete when you are done with the demo. Thank you !
+
+
+------ Create AKS Cluster from CLI --------
+a. az login
+
+b. az group create --name karo-Group --location westeurope
+
+c. az aks create --resource-group karo-Group --name boboCluster --node-count 2 --generate-ssh-keys --enable-addons monitoring
+
+d. az aks show --name boboCluster --resource-group karo-Group
+
+
+e. az acr create --resource-group karo-Group --name boboacr --sku Standard --location westeurope //only use this command if you didn't have an existing acr or you will like a create a different one instead.
+
+f.  az aks get-credentials --resource-group karo-Group --name boboCluster --overwrite-existing
+
+g. az aks update -n boboCluster -g karo-Group --attach-acr boboacr
+
+
+
+----- CLEAN UP AFTER DEMO -----
+
+kubectl delete -f deployment.yml
+az group delete --name karo-Group
+
+----- SERVER.JS -------
+
+const express = require('express');
+const app = express();
+const path = require('path');
+
+
+app.get('/', (req,res) => {
+  res.sendFile(path.join(__dirname+'/index.html'));
+  
+});
+
+
+app.get('/about', (req,res) => {
+    res.sendFile(path.join(__dirname+'/about.html'));
+   
+  });
+
+app.listen(3000, () => {
+    console.log('Listening on port 3000');
+});
+
+
+----- INDEX.HTML ------
+
+
+<!DOCTYPE html>
+<head>
+    <title> Luxz Bazaar </title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+  </head>
+  <body>
+    <div style="margin:6px;">
+      <nav class="navbar navbar-inverse navbar-static-top">
+    <div class="container">
+      <a class="navbar-brand" href="/"> Welcome to Luxz Bazaar </a>
+      <ul class="nav navbar-nav">
+        <li class="active">
+          <a href="/"> Home </a>
+        </li>
+        <li>
+          <a href="/about"> About </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+      <div class="jumbotron"  style="padding:40px;">
+        <h1> This is a Hello Message from  <span class="text-primary"> Luxz </span><span class="text-danger"> Bazaar </span></h1>
+        <p> Kudos to Me <span class="bg-info"> For </span> Building This Nodejs Project <span class="bg-success"> From Scratch </span></p>
+        <p><a class="btn btn-primary btn-lg" href="#" role="button">Keep Winning</a></p>
+      </div>
+    </div>
+  </body>
+</html>
+
+
+
+
+
+
+----- ABOUT.HTML -----
+
+
+<!DOCTYPE html>
+<head>
+    <title> About Us Page </title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+  </head>
+  <body>
+    <div style="margin:6px;">
+      <nav class="navbar navbar-inverse navbar-static-top">
+    <div class="container">
+      <a class="navbar-brand" href="/"> About Luxz Bazaar </a>
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/">Home</a>
+        </li>
+        <li class="active">
+          <a href="/about">About</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+      <div class="jumbotron"  style="padding:40px;">
+        <h1>About Us</h1>
+        <strong><p>Luxz Bazaaar aspires to be African no.1 eCommerce site while still holding on to engineering services, as well as after sales supports for our customers that purchased technical products from us. We are a group of companies and our services span across tech. and security of lives and properties. </p></strong>
+
+        <strong><p>Our products are of utmost qualities at best prices, as well as our tech. services that never stop to wow our customers. We are a growing brand name that will stop at nothing but continuous excellence. Keep enjoying our range of products and services</p></strong>
+        <p><a class="btn btn-primary btn-lg" href="#" role="button">Start Learning</a></p>
+      </div>
+    </div>
+  </body>
+</html>
+
+
+
+
+
+------ DOCKERFILE ------
+
+FROM node:lts-alpine3.17
+
+ENV NODE_ENV=production
+
+
+WORKDIR /app
+
+COPY package*.json /app
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD [ "node", "server.js" ]
+
+
+
+
+------ DEPLOYMENT FILES -------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodesy-deployment
+  labels:
+    app: nodesy-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodesy-app
+  template:
+    metadata:
+      labels:
+        app: nodesy-app
+    spec:
+      containers:
+        - name: nodesy-container
+          image: boboacr.azurecr.io/nodejswebapp:v1.0.0
+          ports:
+            - containerPort: 3000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodesy-service
+spec:
+  selector:
+    app: nodesy-app
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+
+
